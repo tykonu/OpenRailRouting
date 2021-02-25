@@ -5,17 +5,17 @@ import java.util.ArrayList;
 /**
  * This class provides some methods to check if a OSM tag value contains a specific value. The
  * value might be a list separated by semicolons.
- *  
+ *
  * @author Michael Reichert
  */
 public class MultiValueChecker {
 
     /**
      * Check if a value of an OSM tag contains at least one "permitted" value.
-     * 
+     *
      * @param tagValue OSM tag value
      * @param acceptedValues If one of these values is found, the method should return true.
-     * @param resultIfNull This will be returned if the tag is not set at all or acceptedValues is empty. 
+     * @param resultIfNull This will be returned if the tag is not set at all or acceptedValues is empty.
      */
     public static boolean tagContainsInt(String tagValue, ArrayList<Integer> acceptedValues, boolean resultIfNull) {
         if (tagValue == null || acceptedValues.isEmpty() || tagValue.equals("")) {
@@ -45,10 +45,10 @@ public class MultiValueChecker {
 
     /**
      * Check if a value of an OSM tag contains at least one "permitted" value.
-     * 
+     *
      * @param tagValue OSM tag value
      * @param acceptedValues If one of these values is found, the method should return true.
-     * @param resultIfNull This will be returned if the tag is not set at all or acceptedValues is empty. 
+     * @param resultIfNull This will be returned if the tag is not set at all or acceptedValues is empty.
      */
     public static boolean tagContainsDouble(String tagValue, ArrayList<Double> acceptedValues, boolean resultIfNull) {
         if (tagValue == null || acceptedValues.isEmpty() || tagValue.equals("")) {

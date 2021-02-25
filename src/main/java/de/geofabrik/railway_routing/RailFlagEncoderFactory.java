@@ -1,26 +1,32 @@
 package de.geofabrik.railway_routing;
 
-import java.util.LinkedList;
+import java.util.List;
 
 import com.graphhopper.routing.util.FlagEncoder;
-import com.graphhopper.util.CmdArgs;
+import com.graphhopper.routing.util.FlagEncoderFactory;
 import com.graphhopper.util.PMap;
 
 import de.geofabrik.railway_routing.http.FlagEncoderConfiguration;
 
-public class RailFlagEncoderFactory {
+public class RailFlagEncoderFactory implements FlagEncoderFactory {
 
-    public static FlagEncoder createFlagEncoder(FlagEncoderConfiguration config) {
+    List<FlagEncoderConfiguration> definedFlagEncoders;
+
+    RailFlagEncoderFactory(List<FlagEncoderConfiguration> customEncoderConfigs) {
+        definedFlagEncoders = customEncoderConfigs;
+    }
+
+    public PMap createFlagEncoderProperties(FlagEncoderConfiguration config) {
         PMap properties = new PMap();
-        properties.put(RailFlagEncoder.NAME, config.getName());
-        properties.put(RailFlagEncoder.RAILWAY, config.getRailway());
-        properties.put(RailFlagEncoder.ELECTRIFIED, config.getElectrified());
-        properties.put(RailFlagEncoder.VOLATAGES, config.getVoltages());
-        properties.put(RailFlagEncoder.FREQUENCIES, config.getFrequencies());
-        properties.put(RailFlagEncoder.GAUGES, config.getGauges());
-        properties.put(RailFlagEncoder.MAXSPEED, config.getMaxspeed());
-        properties.put(RailFlagEncoder.SPEED_FACTOR, config.getSpeedFactor());
-        return new RailFlagEncoder(properties);
+        properties.putObject(RailFlagEncoder.NAME, config.getName());
+        properties.putObject(RailFlagEncoder.RAILWAY, config.getRailway());
+        properties.putObject(RailFlagEncoder.ELECTRIFIED, config.getElectrified());
+        properties.putObject(RailFlagEncoder.VOLATAGES, config.getVoltages());
+        properties.putObject(RailFlagEncoder.FREQUENCIES, config.getFrequencies());
+        properties.putObject(RailFlagEncoder.GAUGES, config.getGauges());
+        properties.putObject(RailFlagEncoder.MAXSPEED, config.getMaxspeed());
+        properties.putObject(RailFlagEncoder.SPEED_FACTOR, config.getSpeedFactor());
+        return properties;
     }
 
     public static String[] getKnownEncoderNames() {
@@ -29,57 +35,51 @@ public class RailFlagEncoderFactory {
         return names;
     }
 
-    public static FlagEncoder createFlagEncoder(String name) {
+    @Override
+    public FlagEncoder createFlagEncoder(String name, PMap configuration) {
+        for (FlagEncoderConfiguration c : definedFlagEncoders) {
+            if (c.getName().equalsIgnoreCase(name)) {
+                return new RailFlagEncoder(createFlagEncoderProperties(c));
+            }
+        }
         PMap properties = new PMap();
-        properties.put(RailFlagEncoder.NAME, name);
+        properties.putObject(RailFlagEncoder.NAME, name);
         if (name.equals("freight_electric_15kvac_25kvac")) {
-            properties.put(RailFlagEncoder.ELECTRIFIED, "contact_line");
-            properties.put(RailFlagEncoder.VOLATAGES, "15000;25000");
-            properties.put(RailFlagEncoder.FREQUENCIES, "16.7;16.67;50");
-            properties.put(RailFlagEncoder.GAUGES, "1435");
-            properties.put(RailFlagEncoder.MAXSPEED, 90);
+            properties.putObject(RailFlagEncoder.ELECTRIFIED, "contact_line");
+            properties.putObject(RailFlagEncoder.VOLATAGES, "15000;25000");
+            properties.putObject(RailFlagEncoder.FREQUENCIES, "16.7;16.67;50");
+            properties.putObject(RailFlagEncoder.GAUGES, "1435");
+            properties.putObject(RailFlagEncoder.MAXSPEED, 90);
         } else if (name.equals("freight_diesel")) {
-            properties.put(RailFlagEncoder.ELECTRIFIED, "");
-            properties.put(RailFlagEncoder.GAUGES, "1435");
-            properties.put(RailFlagEncoder.MAXSPEED, 90);
+            properties.putObject(RailFlagEncoder.ELECTRIFIED, "");
+            properties.putObject(RailFlagEncoder.GAUGES, "1435");
+            properties.putObject(RailFlagEncoder.MAXSPEED, 90);
         } else if (name.equals("tgv_15kvac25kvac1.5kvdc")) {
-            properties.put(RailFlagEncoder.ELECTRIFIED, "contact_line");
-            properties.put(RailFlagEncoder.VOLATAGES, "15000;25000;1500");
-            properties.put(RailFlagEncoder.FREQUENCIES, "16.7;16.67;50;0");
-            properties.put(RailFlagEncoder.GAUGES, "1435");
-            properties.put(RailFlagEncoder.MAXSPEED, 319);
-            properties.put(RailFlagEncoder.SPEED_FACTOR, 11);
+            properties.putObject(RailFlagEncoder.ELECTRIFIED, "contact_line");
+            properties.putObject(RailFlagEncoder.VOLATAGES, "15000;25000;1500");
+            properties.putObject(RailFlagEncoder.FREQUENCIES, "16.7;16.67;50;0");
+            properties.putObject(RailFlagEncoder.GAUGES, "1435");
+            properties.putObject(RailFlagEncoder.MAXSPEED, 319);
+            properties.putObject(RailFlagEncoder.SPEED_FACTOR, 11);
         } else if (name.equals("tgv_25kvac1.5kvdc3kvdc")) {
-            properties.put(RailFlagEncoder.ELECTRIFIED, "contact_line");
-            properties.put(RailFlagEncoder.VOLATAGES, "25000;3000;1500");
-            properties.put(RailFlagEncoder.FREQUENCIES, "0;50");
-            properties.put(RailFlagEncoder.GAUGES, "1435");
-            properties.put(RailFlagEncoder.MAXSPEED, 319);
-            properties.put(RailFlagEncoder.SPEED_FACTOR, 11);
+            properties.putObject(RailFlagEncoder.ELECTRIFIED, "contact_line");
+            properties.putObject(RailFlagEncoder.VOLATAGES, "25000;3000;1500");
+            properties.putObject(RailFlagEncoder.FREQUENCIES, "0;50");
+            properties.putObject(RailFlagEncoder.GAUGES, "1435");
+            properties.putObject(RailFlagEncoder.MAXSPEED, 319);
+            properties.putObject(RailFlagEncoder.SPEED_FACTOR, 11);
         } else if (name.equals("freight_25kvac1.5kvdc3kvdc")) {
-            properties.put(RailFlagEncoder.ELECTRIFIED, "contact_line");
-            properties.put(RailFlagEncoder.VOLATAGES, "25000;3000;1500");
-            properties.put(RailFlagEncoder.FREQUENCIES, "0;50");
-            properties.put(RailFlagEncoder.GAUGES, "1435");
-            properties.put(RailFlagEncoder.MAXSPEED, 90);
+            properties.putObject(RailFlagEncoder.ELECTRIFIED, "contact_line");
+            properties.putObject(RailFlagEncoder.VOLATAGES, "25000;3000;1500");
+            properties.putObject(RailFlagEncoder.FREQUENCIES, "0;50");
+            properties.putObject(RailFlagEncoder.GAUGES, "1435");
+            properties.putObject(RailFlagEncoder.MAXSPEED, 90);
         } else {
-            throw new IllegalArgumentException("Profile " + name + " not found.");
+            throw new IllegalArgumentException("Flag encoder " + name + " not found.");
         }
         if (properties.isEmpty()) {
             return null;
         }
         return new RailFlagEncoder(properties);
     }
-
-    public static FlagEncoder[] createEncoders(String[] names) {
-        LinkedList<FlagEncoder> encoders = new LinkedList<FlagEncoder>();
-        for (String s : names) {
-            encoders.add(createFlagEncoder(s));
-        }
-        if (encoders.size() > 0) {
-            return encoders.toArray(new FlagEncoder[encoders.size()]);
-        }
-        return null;
-    }
-
 }

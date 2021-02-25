@@ -6,12 +6,9 @@
 
 package de.geofabrik.railway_routing.http;
 
-import java.util.List;
-
 import javax.inject.Inject;
 
-import com.graphhopper.GraphHopper;
-import com.graphhopper.util.CmdArgs;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import de.geofabrik.railway_routing.RailwayHopper;
 import io.dropwizard.lifecycle.Managed;
 import org.slf4j.Logger;
@@ -21,14 +18,14 @@ public class RailwayRoutingManaged implements Managed {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final RailwayHopper graphHopper;
-    
+
     @Inject
-    public RailwayRoutingManaged(CmdArgs configuration, List<FlagEncoderConfiguration> encoderConfig) {
-        graphHopper = (RailwayHopper) new RailwayHopper(configuration, encoderConfig).forServer();
-        graphHopper.setGraphHopperLocation(configuration.get("graph.location", "./graph-cache"));
-//        graphHopper.init(configuration);
+    public RailwayRoutingManaged(RailwayRoutingServerConfiguration configuration, ObjectMapper objectMapper) {
+        graphHopper = (RailwayHopper) new RailwayHopper().forServer();
+        graphHopper.setCustomEncoderConfigs(configuration.getFlagEncoderConfigurations());
+        graphHopper.init(configuration.getGraphHopperConfiguration());
     }
-    
+
     @Override
     public void start() throws Exception {
         graphHopper.importOrLoad();

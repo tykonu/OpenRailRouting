@@ -2,6 +2,7 @@ package de.geofabrik.railway_routing.http;
 
 import org.hibernate.validator.constraints.NotEmpty;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class FlagEncoderConfiguration {
@@ -49,6 +50,7 @@ public class FlagEncoderConfiguration {
     }
 
     @JsonProperty
+    @JsonAlias("speedFactor")
     public String getSpeedFactor() {
         return speedFactor;
     }
@@ -95,6 +97,7 @@ public class FlagEncoderConfiguration {
     }
 
     @JsonProperty
+    @JsonAlias("speedFactor")
     public void setSpeedFactor(String value) {
         speedFactor = value;
     }

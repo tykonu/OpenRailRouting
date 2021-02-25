@@ -12,9 +12,10 @@ import java.util.List;
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.graphhopper.GraphHopperConfig;
 import com.graphhopper.http.GraphHopperBundleConfiguration;
-import com.graphhopper.util.CmdArgs;
 
 import io.dropwizard.Configuration;
 import io.dropwizard.bundles.assets.AssetsBundleConfiguration;
@@ -24,20 +25,21 @@ public class RailwayRoutingServerConfiguration extends Configuration implements 
 
     @NotNull
     @JsonProperty
-    private final CmdArgs graphhopper = new CmdArgs();
+    private final GraphHopperConfig graphhopper = new GraphHopperConfig();
 
     @Valid
     @JsonProperty
     private final AssetsConfiguration assets = AssetsConfiguration.builder().build();
 
     @JsonProperty
+    @JsonAlias("flagEncoderProperties")
     private final List<FlagEncoderConfiguration> flagEncoderProperties = new ArrayList<FlagEncoderConfiguration>();
 
     public RailwayRoutingServerConfiguration() {
     }
 
     @Override
-    public CmdArgs getGraphHopperConfiguration() {
+    public GraphHopperConfig getGraphHopperConfiguration() {
         return graphhopper;
     }
 

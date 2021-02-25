@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,49 +14,39 @@ import javax.ws.rs.DefaultValue;
 import javax.ws.rs.POST;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.UriInfo;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Document;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.graphhopper.GHRequest;
 import com.graphhopper.GHResponse;
 import com.graphhopper.MultiException;
-import com.graphhopper.PathWrapper;
+import com.graphhopper.ResponsePath;
+import com.graphhopper.config.Profile;
 import com.graphhopper.http.WebHelper;
 import com.graphhopper.matching.EdgeMatch;
 import com.graphhopper.matching.MapMatching;
 import com.graphhopper.matching.MatchResult;
 import com.graphhopper.matching.Observation;
 import com.graphhopper.matching.gpx.Gpx;
-import com.graphhopper.matching.gpx.Trk;
-import com.graphhopper.matching.gpx.Trkseg;
-import com.graphhopper.routing.AlgorithmOptions;
 import com.graphhopper.routing.Path;
-import com.graphhopper.routing.util.EncodingManager;
-import com.graphhopper.routing.util.FlagEncoder;
-import com.graphhopper.routing.util.HintsMap;
-import com.graphhopper.routing.util.TraversalMode;
-import com.graphhopper.routing.weighting.FastestWeighting;
+import com.graphhopper.routing.ProfileResolver;
 import com.graphhopper.routing.weighting.Weighting;
+import com.graphhopper.storage.GraphHopperStorage;
 import com.graphhopper.util.Constants;
-import com.graphhopper.util.DistanceCalc;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.GHUtility;
 import com.graphhopper.util.Helper;
+import com.graphhopper.util.PMap;
 import com.graphhopper.util.Parameters;
 import com.graphhopper.util.PathMerger;
 import com.graphhopper.util.PointList;
@@ -78,14 +67,14 @@ public class MatchResource {
     private static final Logger logger = LoggerFactory.getLogger(MatchResource.class);
 
     private final RailwayHopper hopper;
-    private final EncodingManager encodingManager;
+    private final ProfileResolver profileResolver;
     private final TranslationMap trMap;
 
     @Inject
-    public MatchResource(RailwayHopper graphHopper, EncodingManager encodingManager,
+    public MatchResource(RailwayHopper graphHopper, ProfileResolver profileResolver,
             TranslationMap trMap) {
         this.hopper = graphHopper;
-        this.encodingManager = encodingManager;
+        this.profileResolver = profileResolver;
         this.trMap = trMap;
     }
 
@@ -154,7 +143,7 @@ public class MatchResource {
         return readCSV(inputStream, 50, separator, quoteChar);
     }
 
-    private String getCSVOutput(PathWrapper path, char separator) {
+    private String getCSVOutput(ResponsePath path, char separator) {
         PointList points = path.getPoints();
         StringBuilder str = new StringBuilder(points.getSize() * 2 * 15);
         str.append("longitude").append(separator).append("latitude\n");
@@ -167,26 +156,19 @@ public class MatchResource {
         return str.toString();
     }
 
-    // copied from com.graphhopper.resources.RouteResource
-    static void initHints(HintsMap m, MultivaluedMap<String, String> parameterMap) {
-        for (Map.Entry<String, List<String>> e : parameterMap.entrySet()) {
+    /**
+     * Copied from com.graphhopper.resources.MatchResource
+     */
+    private PMap createHintsMap(MultivaluedMap<String, String> queryParameters) {
+        PMap m = new PMap();
+        for (Map.Entry<String, List<String>> e : queryParameters.entrySet()) {
             if (e.getValue().size() == 1) {
-                m.put(e.getKey(), e.getValue().get(0));
+                m.putObject(Helper.camelCaseToUnderScore(e.getKey()), Helper.toObject(e.getValue().get(0)));
             } else {
-                // Do nothing.
-                // TODO: this is dangerous: I can only silently swallow
-                // the forbidden multiparameter. If I comment-in the line below,
-                // I get an exception, because "point" regularly occurs
-                // multiple times.
-                // I think either unknown parameters (hints) should be allowed
-                // to be multiparameters, too, or we shouldn't use them for
-                // known parameters either, _or_ known parameters
-                // must be filtered before they come to this code point,
-                // _or_ we stop passing unknown parameters alltogether..
-                //
-                // throw new WebApplicationException(String.format("This query parameter (hint) is not allowed to occur multiple times: %s", e.getKey()));
+                // TODO ugly: ignore multi parameters like point to avoid exception. See RouteResource.initHints
             }
         }
+        return m;
     }
 
     @POST
@@ -213,34 +195,21 @@ public class MatchResource {
             @QueryParam(MAX_VISITED_NODES) @DefaultValue("3000") int maxVisitedNodes,
             @QueryParam("gps_accuracy") @DefaultValue("40") double gpsAccuracy,
             @QueryParam("fill_gaps") @DefaultValue("false") boolean fillGaps) throws Exception {
-        
         StopWatch sw = new StopWatch().start();
         boolean writeGPX = "gpx".equalsIgnoreCase(outType);
         instructions = writeGPX || instructions;
         String infoStr = httpReq.getRemoteAddr() + " " + httpReq.getLocale() + " " + httpReq.getHeader("User-Agent");
         String logStr = httpReq.getQueryString() + " " + infoStr;
-        FlagEncoder encoder;
-        try {
-            encoder = encodingManager.getEncoder(vehicleStr);
-        } catch (IllegalArgumentException err) {
-            throw new IllegalArgumentException("Vehicle not supported: " + vehicleStr);
-        }
-        FastestWeighting fastestWeighting = new FastestWeighting(encoder);
-        TraversalMode tMode;
-        if (hopper.getEncodingManager().needsTurnCostsSupport()) {
-            tMode = TraversalMode.EDGE_BASED;
-        } else {
-            tMode = TraversalMode.NODE_BASED;
-        }
-        Weighting turnWeighting = hopper.createTurnWeighting(hopper.getGraphHopperStorage(),
-                fastestWeighting, tMode, 0);
-        AlgorithmOptions opts = AlgorithmOptions.start()
-                .traversalMode(tMode)
-                .maxVisitedNodes(maxVisitedNodes)
-                .weighting(turnWeighting)
-                .hints(new HintsMap().put("vehicle", vehicleStr))
-                .build();
-        MapMatching mapMatching = new MapMatching(hopper, opts);
+        PMap hints = createHintsMap(uriInfo.getQueryParameters());
+        hints.putObject("vehicle", vehicleStr);
+        hints.putObject(MAX_VISITED_NODES, maxVisitedNodes);
+        // resolve profile and remove legacy vehicle/weighting parameters
+        Profile profile = profileResolver.resolveProfile(hints);
+        hints.remove("vehicle");
+        hints.remove("weighting");
+        hints.putObject("profile", profile.getName());
+
+        MapMatching mapMatching = new MapMatching(hopper, hints);
         mapMatching.setMeasurementErrorSigma(gpsAccuracy);
         float took = 0;
         try {
@@ -248,11 +217,13 @@ public class MatchResource {
             if (inputGPXEntries.size() < 2) {
                 throw new IllegalArgumentException("input contains less than two points");
             }
-            PathMerger pathMerger = new PathMerger().
+            GraphHopperStorage storage = hopper.getGraphHopperStorage();
+            Weighting weighting = hopper.createWeighting(hopper.getProfiles().get(0), hints);
+            PathMerger pathMerger = new PathMerger(storage, weighting).
                     setEnableInstructions(instructions).
                     setPathDetailsBuilders(hopper.getPathDetailsBuilderFactory(), pathDetails);
             // set a maximum distance for routing requests
-            PathWrapper pathWrapper = new PathWrapper();
+            ResponsePath pathWrapper = new ResponsePath();
             Translation tr = trMap.getWithFallBack(Helper.getLocale(localeStr));
             List<MatchResult> matchResultsList = new ArrayList<MatchResult>(2);
             List<Path> mergedPaths = new ArrayList<Path>(3);
@@ -265,13 +236,12 @@ public class MatchResource {
                     points.add((GHPoint) inputGPXEntries.get(start_point).getPoint());
                     points.add((GHPoint) inputGPXEntries.get(start_point + 1).getPoint());
                     GHRequest request =  new GHRequest(points);
-                    initHints(request.getHints(), uriInfo.getQueryParameters());
-                    request.setVehicle(encodingManager.getEncoder(vehicleStr).toString()).
+                    request.setProfile(profile.getName()).
                         setLocale(localeStr).
                         setPathDetails(pathDetails).
                         getHints().
-                        put(CALC_POINTS, calcPoints).
-                        put(INSTRUCTIONS, instructions);
+                        putObject(CALC_POINTS, calcPoints).
+                        putObject(INSTRUCTIONS, instructions);
                     GHResponse response = new GHResponse();
                     List<Path> paths = hopper.calcPaths(request, response);
                     if (response.hasErrors()) {
@@ -290,7 +260,7 @@ public class MatchResource {
             // marked with a non-empty list of Exception objects. I disagree, so I clear it.
             pathWrapper.getErrors().clear();
             GHResponse rsp = new GHResponse();
-            pathMerger.doWork(pathWrapper, mergedPaths, encodingManager, tr);
+            pathMerger.doWork(pathWrapper, mergedPaths, hopper.getEncodingManager(), tr);
             rsp.add(pathWrapper);
 
             took = sw.stop().getSeconds();
@@ -319,7 +289,7 @@ public class MatchResource {
                 ObjectNode map = WebHelper.jsonObject(rsp, instructions, calcPoints, false, pointsEncoded, took);
 
                 double matchLength = 0, gpxEntriesLength = 0;
-                int matchMillis = 0, gpxEntriesMillis = 0;
+                int matchMillis = 0;
                 List<Integer> traversalKeylist = new ArrayList<>();
                 for (MatchResult mr : matchResultsList) {
                     matchLength += mr.getMatchLength();

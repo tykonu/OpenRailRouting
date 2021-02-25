@@ -13,10 +13,10 @@ public class InputCSVEntry {
 
     @CsvBindByName
     private double longitude;
-    
+
     public InputCSVEntry() {
     }
-    
+
     public InputCSVEntry(double lat, double lon) {
         super();
         latitude = lat;

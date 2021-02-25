@@ -8,12 +8,12 @@ import com.carrotsearch.hppc.IntSet;
 public class CrossingsSetHook extends OSMReaderHook {
     private IntSet nodes;
     private OSMReader reader;
-    
+
     public CrossingsSetHook(OSMReader reader, IntSet crossingsSet) {
         this.nodes = crossingsSet;
         this.reader = reader;
     }
-    
+
     public void processNode(ReaderNode node) {
         if (node.hasTag("railway", "railway_crossing")) {
             nodes.add(reader.getNodeMap().get(node.getId()));

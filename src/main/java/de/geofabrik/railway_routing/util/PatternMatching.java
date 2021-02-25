@@ -13,17 +13,13 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Arrays;
 import java.util.LinkedList;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 public class PatternMatching {
-    private static final Logger logger = LogManager.getLogger(PatternMatching.class);
-    
+
     public static int patternSplitDirFile(String pattern) {
         if (!pattern.contains("*") && !pattern.contains("?")) {
             return -1;
         }
-        
+
         int firstStar = pattern.indexOf("*");
         int firstQuestionMark = pattern.indexOf("?");
         int firstWildcard = -1;
@@ -45,7 +41,7 @@ public class PatternMatching {
         }
         return lastSep;
     }
-    
+
     public static LinkedList<Path> getFileList(String pattern, int lastSeparator) {
         if (!pattern.contains("*") && !pattern.contains("?")) {
             return new LinkedList<Path>(Arrays.asList(Paths.get(pattern)));
@@ -59,18 +55,18 @@ public class PatternMatching {
             directory = pattern.substring(0, lastSeparator);
             finalPattern = pattern.substring(lastSeparator + 1);
         }
-        
+
         class Finder extends SimpleFileVisitor<Path> {
             private final PathMatcher matcher;
             LinkedList<Path> files;
             private final String directory;
-            
+
             Finder(String directory, String pattern) {
                 this.matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
                 this.files = new LinkedList<Path>();
                 this.directory = directory;
             }
-            
+
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
                 Path name = file.getFileName();
@@ -79,28 +75,28 @@ public class PatternMatching {
                 }
                 return FileVisitResult.CONTINUE;
             }
-            
+
             public FileVisitResult preVisitDirectory(Path dir,
                     BasicFileAttributes attrs) {
                 return FileVisitResult.CONTINUE;
             }
-            
+
             public FileVisitResult visitFileFailed(Path dir, IOException exc) {
                 return FileVisitResult.CONTINUE;
             }
-            
+
             public LinkedList<Path> getPathList() {
                 return files;
             }
         }
-        
+
         Finder finder = new Finder(directory, finalPattern);
         try {
             Files.walkFileTree(Paths.get(directory), finder);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        
+
         return finder.getPathList();
     }
 }

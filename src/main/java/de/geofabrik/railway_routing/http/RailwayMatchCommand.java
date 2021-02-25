@@ -1,38 +1,30 @@
 package de.geofabrik.railway_routing.http;
 
+import static com.graphhopper.util.Parameters.Routing.MAX_VISITED_NODES;
+
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.w3c.dom.Document;
-import org.xml.sax.InputSource;
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import com.graphhopper.PathWrapper;
+import com.graphhopper.ResponsePath;
+import com.graphhopper.config.Profile;
 import com.graphhopper.matching.MapMatching;
 import com.graphhopper.matching.MatchResult;
 import com.graphhopper.matching.Observation;
 import com.graphhopper.matching.gpx.Gpx;
-import com.graphhopper.routing.AlgorithmOptions;
-import com.graphhopper.routing.util.FlagEncoder;
-import com.graphhopper.routing.util.HintsMap;
-import com.graphhopper.routing.util.TraversalMode;
-import com.graphhopper.routing.weighting.FastestWeighting;
 import com.graphhopper.routing.weighting.Weighting;
-import com.graphhopper.util.CmdArgs;
 import com.graphhopper.util.Constants;
 import com.graphhopper.util.Helper;
-import com.graphhopper.util.InstructionList;
+import com.graphhopper.util.PMap;
 import com.graphhopper.util.PathMerger;
 import com.graphhopper.util.Translation;
 import com.graphhopper.util.TranslationMap;
@@ -46,10 +38,12 @@ import net.sourceforge.argparse4j.inf.Namespace;
 import net.sourceforge.argparse4j.inf.Subparser;
 
 public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerConfiguration> {
+    final Logger logger = LogManager.getLogger(RailwayMatchCommand.class);
+
     public RailwayMatchCommand() {
         super("match", "matches GPX tracks to the railway network");
     }
-    
+
     @Override
     public void configure(Subparser subparser) {
         super.configure(subparser);
@@ -57,13 +51,17 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
                 .dest("vehicle")
                 .type(String.class)
                 .required(true)
-                .help("profile to use");
+                .help("Profile to use");
         subparser.addArgument("-a", "--gps-accuracy")
                 .dest("gps-accuracy")
                 .type(Double.class)
                 .required(false)
                 .setDefault(40.0)
                 .help("GPS measurement accuracy");
+        subparser.addArgument("--transition_probability_beta")
+                .type(Double.class)
+                .required(false)
+                .setDefault(2.0);
         subparser.addArgument("--max-nodes")
                 .dest("max_nodes_to_visit")
                 .type(Integer.class)
@@ -75,60 +73,45 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
                 .type(String.class)
                 .required(true)
                 .help("GPX input file(s). The argument may be a glob pattern.");
+        subparser.addArgument("--graph_location")
+                .type(String.class)
+                .required(false)
+                .setDefault("graph-cache")
+                .help("Directory where to store the graph on disk.");
     }
 
     @Override
-    protected void run(Bootstrap<RailwayRoutingServerConfiguration> bootstrap, Namespace namespace, RailwayRoutingServerConfiguration configuration) throws Exception {
-        configuration.getGraphHopperConfiguration().merge(CmdArgs.readFromSystemProperties());
-        CmdArgs commandline_args = configuration.getGraphHopperConfiguration();
-        RailwayHopper hopper = new RailwayHopper(configuration.getGraphHopperConfiguration(),
-                configuration.getFlagEncoderConfigurations());
-        hopper.setGraphHopperLocation(commandline_args.get("graph.location", "./graph-cache"));
-//        graphHopper.start();
-//        graphHopper.stop();
-        
+    protected void run(Bootstrap<RailwayRoutingServerConfiguration> bootstrap, Namespace args,
+            RailwayRoutingServerConfiguration configuration) throws Exception {
+        if (args.getString("graph_location") != null) {
+            configuration.getGraphHopperConfiguration().putObject("graph.location", args.getString("graph_location"));
+        }
+        RailwayHopper hopper = new RailwayHopper();
+        hopper.setCustomEncoderConfigs(configuration.getFlagEncoderConfigurations());
+        hopper.init(configuration.getGraphHopperConfiguration());
 
-        final Logger logger = LogManager.getLogger(RailwayMatchCommand.class);
         logger.info("Loading graph from cache at {}", hopper.getGraphHopperLocation());
         hopper.load(hopper.getGraphHopperLocation());
-        List<FlagEncoder> flagEncoders = hopper.getEncodingManager().fetchEdgeEncoders();
-        FlagEncoder selectedEncoder = null;
-        String profile = namespace.get("vehicle");
-        for (FlagEncoder encoder : flagEncoders) {
-            if (encoder.toString().equals(profile)) {
-                selectedEncoder = encoder;
-            }
+        PMap hints = new PMap().putObject(MAX_VISITED_NODES, args.get("max_visited_nodes"));
+        Profile profile = hopper.getProfile(args.get("vehicle"));
+        if (profile == null) {
+            throw new IllegalArgumentException("The selected profile is not available in the graph.");
         }
-        if (selectedEncoder == null) {
-            throw new IllegalArgumentException("No valid encoding manager selected. Please use the 'vehicle' parameter.");
-        }
-        double gpsAccuracy = namespace.getDouble("gps-accuracy");
+        hints.putObject("profile", profile.getName());
+        double gpsAccuracy = args.getDouble("gps-accuracy");
 
-        FastestWeighting fastestWeighting = new FastestWeighting(selectedEncoder);
-        TraversalMode tMode;
-        if (hopper.getEncodingManager().needsTurnCostsSupport()) {
-            tMode = TraversalMode.EDGE_BASED;
-        } else {
-            tMode = TraversalMode.NODE_BASED;
-        }
-        Weighting turnWeighting = hopper.createTurnWeighting(hopper.getGraphHopperStorage(),
-                fastestWeighting, tMode, 0);
-        AlgorithmOptions opts = AlgorithmOptions.start()
-                .traversalMode(tMode)
-                .maxVisitedNodes(namespace.getInt("max_nodes_to_visit"))
-                .weighting(turnWeighting)
-                .hints(new HintsMap().put("vehicle", profile))
-                .build();
+        Weighting weighting = hopper.createWeighting(hopper.getProfiles().get(0), hints);
 
-        MapMatching mapMatching = new MapMatching(hopper, opts);
+        MapMatching mapMatching = new MapMatching(hopper, hints);
+        mapMatching.setTransitionProbabilityBeta(args.getDouble("transition_probability_beta"));
         mapMatching.setMeasurementErrorSigma(gpsAccuracy);
 
-        String inputPath = namespace.getString("gpx_location");
+        String inputPath = args.getString("gpx_location");
         if (inputPath.equals("")) {
             throw new IllegalArgumentException("No input file was given. Please use the option gpx.location=*.");
         }
         int lastSeparator = PatternMatching.patternSplitDirFile(inputPath);
-        String localeStr = namespace.getString("instructions");
+        String localeStr = args.getString("instructions");
         if (localeStr == null) {
             localeStr = "";
         }
@@ -141,17 +124,28 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
             try {
                 logger.info("Matching GPX track {} on the graph.", f.toString());
                 Gpx gpx = xmlMapper.readValue(f.toFile(), Gpx.class);
+                if (gpx.trk == null) {
+                    throw new IllegalArgumentException("No tracks found in GPX document. Are you using waypoints or routes instead?");
+                }
+                if (gpx.trk.size() > 1) {
+                    throw new IllegalArgumentException("GPX documents with multiple tracks not supported yet.");
+                }
                 List<Observation> inputGPXEntries = gpx.trk.get(0).getEntries();
                 MatchResult mr = mapMatching.doWork(inputGPXEntries, false);
-                logger.debug("\tmatches: {}", mr.getEdgeMatches().size());
-                logger.debug("\tgpx length: {}", mr.getGpxEntriesLength(), mr.getMatchLength());
+                logger.debug("\tmatches: {}, GPX entries: {}", mr.getEdgeMatches().size(), inputGPXEntries.size());
+                logger.debug("\tGPX length: {} vs. {}", mr.getGpxEntriesLength(), mr.getMatchLength());
 
                 String outFile = f.toString() + ".res.gpx";
-                System.out.println("\texport results to:" + outFile);
+                logger.info("\texport results to:" + outFile);
 
-                PathWrapper pathWrapper = new PathWrapper();
-                new PathMerger().doWork(pathWrapper, Collections.singletonList(mr.getMergedPath()),
-                        hopper.getEncodingManager(), tr);
+                ResponsePath responsePath = new ResponsePath();
+                new PathMerger(mr.getGraph(), weighting).
+                    doWork(responsePath, Collections.singletonList(mr.getMergedPath()), hopper.getEncodingManager(), tr);
+                if (responsePath.hasErrors()) {
+                    System.err.println("Problem with file " + f + ", " + responsePath.getErrors());
+                    continue;
+                }
+
                 try (BufferedWriter writer = new BufferedWriter(new FileWriter(outFile))) {
                     // The GPX output is not exactly the same as upstream GraphHopper.
                     // Upstream GraphHopper writes the timestamp of the first trackpoint of the input
@@ -159,12 +153,8 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
                     // is special to GPX. The same applies tothe name field of the metadata section.
                     //TODO If elevation support is added, remove hardcoded false here.
                     long time = System.currentTimeMillis();
-                    if (pathWrapper.hasErrors()) {
-                        logger.error("Failed to match {} to the graph.", f);
-                        System.exit(1);
-                    }
                     String trackName = gpx.trk.get(0).name != null ? gpx.trk.get(0).name : "";
-                    writer.append(GpxFromInstructions.createGPX(pathWrapper.getInstructions(),
+                    writer.append(GpxFromInstructions.createGPX(responsePath.getInstructions(),
                             trackName, time, hopper.hasElevation(), withRoute, true, false,
                             Constants.VERSION, tr));
                 }

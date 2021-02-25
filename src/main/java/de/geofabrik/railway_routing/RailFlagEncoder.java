@@ -7,14 +7,13 @@ import java.util.HashSet;
 import java.util.Arrays;
 import java.util.List;
 
-import com.graphhopper.reader.ReaderRelation;
 import com.graphhopper.reader.ReaderWay;
 import com.graphhopper.routing.util.AbstractFlagEncoder;
 import com.graphhopper.routing.util.EncodingManager;
-import com.graphhopper.routing.util.EncodingManager.Access;
+import com.graphhopper.routing.util.spatialrules.TransportationMode;
 import com.graphhopper.storage.IntsRef;
-import com.graphhopper.routing.profiles.EncodedValue;
-import com.graphhopper.routing.profiles.UnsignedDecimalEncodedValue;
+import com.graphhopper.routing.ev.EncodedValue;
+import com.graphhopper.routing.ev.UnsignedDecimalEncodedValue;
 import com.graphhopper.util.PMap;
 
 import de.geofabrik.railway_routing.util.MultiValueChecker;
@@ -56,9 +55,8 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
         this((int) properties.getLong("speedBits", 5),
                 properties.getDouble(SPEED_FACTOR, 5),
         properties.getInt("max_turn_costs", 3),
-        properties.get(NAME, ""));
+        properties.getString(NAME, ""));
         this.speedTwoDirections = properties.getBool("speed_two_directions", false);
-        this.properties = properties;
         initFromProperties(properties);
     }
 
@@ -73,18 +71,11 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
         }
         this.name = name;
         tk = maxTurnCosts;
-        init();
     }
 
     protected void initFromProperties(PMap properties) {
-        super.init();
-        if (this.properties == null) {
-            this.properties = properties;
-        } else {
-            this.properties.put(properties);
-        }
         // railway values
-        String railwayProps = properties.get(RAILWAY, "");
+        String railwayProps = properties.getString(RAILWAY, "");
         if (!railwayProps.equals("")) {
             this.railwayValues = new HashSet<String>(Arrays.asList(railwayProps.split(";")));
         } else {
@@ -93,7 +84,7 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
         }
 
         // electrified values
-        String electrifiedProps = properties.get(ELECTRIFIED, "");
+        String electrifiedProps = properties.getString(ELECTRIFIED, "");
         if (!electrifiedProps.equals("")) {
             this.electrifiedValues = new ArrayList<String>(Arrays.asList(electrifiedProps.split(";")));
         } else {
@@ -101,21 +92,21 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
         }
 
         this.acceptedVoltages = new ArrayList<Integer>();
-        for (String v : properties.get(VOLATAGES, "").split(";")) {
+        for (String v : properties.getString(VOLATAGES, "").split(";")) {
             if (!v.equals("")) {
                 this.acceptedVoltages.add(Integer.parseInt(v));
             }
         }
 
         this.acceptedFrequencies = new ArrayList<Double>();
-        for (String v : properties.get(FREQUENCIES, "").split(";")) {
+        for (String v : properties.getString(FREQUENCIES, "").split(";")) {
             if (!v.equals("")) {
                 this.acceptedFrequencies.add(Double.parseDouble(v));
             }
         }
 
         this.acceptedGauges = new ArrayList<Integer>();
-        for (String v : properties.get(GAUGES, "").split(";")) {
+        for (String v : properties.getString(GAUGES, "").split(";")) {
             if (!v.equals("")) {
                 this.acceptedGauges.add(Integer.parseInt(v));
             }
@@ -136,11 +127,6 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
 
     public void setMaxPossibleSpeed(int speed) {
         maxPossibleSpeed = speed;
-    }
-
-    @Override
-    public long handleRelationTags(long oldRelation, ReaderRelation relation) {
-        return oldRelation;
     }
 
     public boolean hasCompatibleElectricity(ReaderWay way) {
@@ -189,7 +175,7 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
     public void createEncodedValues(List<EncodedValue> registerNewEncodedValue, String prefix, int index) {
         // first two bits are reserved for route handling in superclass
         super.createEncodedValues(registerNewEncodedValue, prefix, index);
-        registerNewEncodedValue.add(speedEncoder = new UnsignedDecimalEncodedValue(getKey(prefix, "average_speed"), speedBits, speedFactor, defaultSpeed, speedTwoDirections));
+        registerNewEncodedValue.add(avgSpeedEnc = new UnsignedDecimalEncodedValue(getKey(prefix, "average_speed"), speedBits, speedFactor, defaultSpeed, speedTwoDirections));
     }
 
     protected double getSpeed(ReaderWay way) {
@@ -208,7 +194,7 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
     }
 
     @Override
-    public IntsRef handleWayTags(IntsRef edgeFlags, ReaderWay way, EncodingManager.Access access, long relationFlags) {
+    public IntsRef handleWayTags(IntsRef edgeFlags, ReaderWay way, EncodingManager.Access access) {
         if (access.canSkip()) {
             return edgeFlags;
         }
@@ -269,5 +255,10 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
     @Override
     public String toString() {
         return name;
+    }
+
+    @Override
+    public TransportationMode getTransportationMode() {
+        return TransportationMode.OTHER;
     }
 }
