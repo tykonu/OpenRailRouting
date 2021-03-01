@@ -217,7 +217,7 @@ public class RailFlagEncoder extends AbstractFlagEncoder {
      */
     protected double applyMaxSpeed(ReaderWay way, double speed) {
         double maxSpeed = getMaxSpeed(way);
-        if (maxSpeed <= 0) {
+        if (!isValidSpeed(maxSpeed) || maxSpeed <= 0) {
             maxSpeed = speed;
         } else if (maxSpeed > this.maxPossibleSpeed) {
             maxSpeed = this.maxPossibleSpeed;
