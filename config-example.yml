@@ -228,7 +228,7 @@ graphhopper:
 #
 assets:
  overrides:
-   /maps: src/main/resources/assets/
+   /maps: web/target/classes/assets/
    /map-matching: src/main/resources/map-matching-frontend/
 
 # Dropwizard server configuration

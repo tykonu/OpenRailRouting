@@ -20,21 +20,21 @@
     <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-core</artifactId>
-            <version>1.0-osm-reader-callbacks</version>
+            <version>2.0-osm-reader-callbacks</version>
             <!--<scope>system</scope>
             <systemPath>${basedir}/graphhopper/core/target/graphhopper-core-0.13-SNAPSHOT.jar</systemPath>-->
           </dependency>
           <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-reader-osm</artifactId>
-            <version>1.0-osm-reader-callbacks</version>
+            <version>2.0-osm-reader-callbacks</version>
             <!--<scope>system</scope>
             <systemPath>${basedir}/graphhopper/reader-osm/target/graphhopper-reader-osm-0.13-SNAPSHOT.jar</systemPath>-->
           </dependency>
           <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-web</artifactId>
-            <version>1.0-osm-reader-callbacks</version>
+            <version>2.0-osm-reader-callbacks</version>
             <!--<scope>system</scope>
             <systemPath>${basedir}/graphhopper/web/target/graphhopper-web-0.13-SNAPSHOT.jar</systemPath>-->
             <exclusions>
@@ -52,17 +52,17 @@
           <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-api</artifactId>
-            <version>1.0-osm-reader-callbacks</version>
+            <version>2.0-osm-reader-callbacks</version>
           </dependency>
           <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-web-api</artifactId>
-            <version>1.0-osm-reader-callbacks</version>
+            <version>2.0-osm-reader-callbacks</version>
           </dependency>
         <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-map-matching-core</artifactId>
-            <version>1.0-fill-matching-gaps</version>
+            <version>2.0-fill-matching-gaps</version>
             <exclusions>
               <exclusion>
                 <!-- exclude graphhopper-core because it is already included directly but the map matching module brings in an older version -->

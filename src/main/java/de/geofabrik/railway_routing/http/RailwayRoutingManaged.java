@@ -8,6 +8,7 @@ package de.geofabrik.railway_routing.http;
 
 import javax.inject.Inject;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import de.geofabrik.railway_routing.RailwayHopper;
 import io.dropwizard.lifecycle.Managed;
@@ -21,6 +22,8 @@ public class RailwayRoutingManaged implements Managed {
 
     @Inject
     public RailwayRoutingManaged(RailwayRoutingServerConfiguration configuration, ObjectMapper objectMapper) {
+        ObjectMapper localObjectMapper = objectMapper.copy();
+        localObjectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         graphHopper = (RailwayHopper) new RailwayHopper().forServer();
         graphHopper.setCustomEncoderConfigs(configuration.getFlagEncoderConfigurations());
         graphHopper.init(configuration.getGraphHopperConfiguration());

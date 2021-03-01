@@ -164,9 +164,6 @@ public class RailwayHopper extends GraphHopperOSM {
             encodedValues.add(new EncoderEncodedValue((AbstractFlagEncoder) encoder));
         }
         for (int start = 0; start < nodes; start++) {
-            if (ghs.isNodeRemoved(start)) {
-                continue;
-            }
             EdgeIterator iter = explorer.setBaseNode(start);
             handleSwitch(iter, angleCalc, ghs, encodedValues, start);
         }

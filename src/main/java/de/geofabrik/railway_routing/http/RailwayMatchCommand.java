@@ -131,7 +131,7 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
                     throw new IllegalArgumentException("GPX documents with multiple tracks not supported yet.");
                 }
                 List<Observation> inputGPXEntries = gpx.trk.get(0).getEntries();
-                MatchResult mr = mapMatching.doWork(inputGPXEntries, false);
+                MatchResult mr = mapMatching.match(inputGPXEntries, false);
                 logger.debug("\tmatches: {}, GPX entries: {}", mr.getEdgeMatches().size(), inputGPXEntries.size());
                 logger.debug("\tGPX length: {} vs. {}", mr.getGpxEntriesLength(), mr.getMatchLength());
 
@@ -140,7 +140,7 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
 
                 ResponsePath responsePath = new ResponsePath();
                 new PathMerger(mr.getGraph(), weighting).
-                    doWork(responsePath, Collections.singletonList(mr.getMergedPath()), hopper.getEncodingManager(), tr);
+                    doWork(responsePath.getPoints(), Collections.singletonList(mr.getMergedPath()), hopper.getEncodingManager(), tr);
                 if (responsePath.hasErrors()) {
                     System.err.println("Problem with file " + f + ", " + responsePath.getErrors());
                     continue;

@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,11 +40,19 @@ import com.graphhopper.matching.MapMatching;
 import com.graphhopper.matching.MatchResult;
 import com.graphhopper.matching.Observation;
 import com.graphhopper.matching.gpx.Gpx;
+import com.graphhopper.routing.AlgorithmOptions;
 import com.graphhopper.routing.Path;
+import com.graphhopper.routing.PathCalculator;
 import com.graphhopper.routing.ProfileResolver;
+import com.graphhopper.routing.Router;
+import com.graphhopper.routing.ViaRouting;
+import com.graphhopper.routing.querygraph.QueryGraph;
+import com.graphhopper.routing.util.TraversalMode;
 import com.graphhopper.routing.weighting.Weighting;
 import com.graphhopper.storage.GraphHopperStorage;
+import com.graphhopper.storage.index.Snap;
 import com.graphhopper.util.Constants;
+import com.graphhopper.util.DouglasPeucker;
 import com.graphhopper.util.EdgeIteratorState;
 import com.graphhopper.util.GHUtility;
 import com.graphhopper.util.Helper;
@@ -183,10 +193,11 @@ public class MatchResource {
             @QueryParam("csv_input.separator") @DefaultValue(";") char csvInputSeparator,
             @QueryParam("csv_input.quoteChar") @DefaultValue("\"") char quoteChar,
             @QueryParam("csv_output.separator") @DefaultValue(";") char csvOutputSeparator,
+            @QueryParam(WAY_POINT_MAX_DISTANCE) @DefaultValue("1") double minPathPrecision,
             @QueryParam(INSTRUCTIONS) @DefaultValue("true") boolean instructions,
             @QueryParam(CALC_POINTS) @DefaultValue("true") boolean calcPoints,
             @QueryParam("points_encoded") @DefaultValue("true") boolean pointsEncoded,
-            @QueryParam("vehicle") @DefaultValue("car") String vehicleStr,
+            @QueryParam("profile") @DefaultValue("car") String vehicleStr,
             @QueryParam("locale") @DefaultValue("en") String localeStr,
             @QueryParam(Parameters.Details.PATH_DETAILS) List<String> pathDetails,
             @QueryParam("gpx.route") @DefaultValue("true") boolean withRoute,
@@ -208,6 +219,7 @@ public class MatchResource {
         hints.remove("vehicle");
         hints.remove("weighting");
         hints.putObject("profile", profile.getName());
+        Router router = hopper.createRouter();
 
         MapMatching mapMatching = new MapMatching(hopper, hints);
         mapMatching.setMeasurementErrorSigma(gpsAccuracy);
@@ -219,14 +231,16 @@ public class MatchResource {
             }
             GraphHopperStorage storage = hopper.getGraphHopperStorage();
             Weighting weighting = hopper.createWeighting(hopper.getProfiles().get(0), hints);
+                DouglasPeucker peucker = new DouglasPeucker().setMaxDistance(minPathPrecision);
             PathMerger pathMerger = new PathMerger(storage, weighting).
-                    setEnableInstructions(instructions).
-                    setPathDetailsBuilders(hopper.getPathDetailsBuilderFactory(), pathDetails);
+                setEnableInstructions(instructions).
+                setPathDetailsBuilders(hopper.getPathDetailsBuilderFactory(), pathDetails).
+                setDouglasPeucker(peucker).
+                setSimplifyResponse(minPathPrecision > 0);
             // set a maximum distance for routing requests
-            ResponsePath pathWrapper = new ResponsePath();
             Translation tr = trMap.getWithFallBack(Helper.getLocale(localeStr));
             List<MatchResult> matchResultsList = new ArrayList<MatchResult>(2);
-            List<Path> mergedPaths = new ArrayList<Path>(3);
+            List<Path> paths = new ArrayList<Path>(3);
             do {
                 // Fill gap with normal routing if matching in the last iteration of this loop ended at a gap.
                 // mapMatching.getSucessfullyMatchedPoints() returns -1 if no point has been matched yet (e.g. gap between first and second point).
@@ -236,32 +250,38 @@ public class MatchResource {
                     points.add((GHPoint) inputGPXEntries.get(start_point).getPoint());
                     points.add((GHPoint) inputGPXEntries.get(start_point + 1).getPoint());
                     GHRequest request =  new GHRequest(points);
-                    request.setProfile(profile.getName()).
-                        setLocale(localeStr).
-                        setPathDetails(pathDetails).
-                        getHints().
-                        putObject(CALC_POINTS, calcPoints).
-                        putObject(INSTRUCTIONS, instructions);
-                    GHResponse response = new GHResponse();
-                    List<Path> paths = hopper.calcPaths(request, response);
-                    if (response.hasErrors()) {
-                        logger.error("Routing request for " + points.toString() + " to fill a gap in the map matching failed: " + response.getErrors().toString());
-                        throw new MultiException(response.getErrors());
-                    } else {
-                        mergedPaths.add(paths.get(0));
-                    }
+                    GHResponse ghRsp = new GHResponse();
+                    List<Snap> qResults = ViaRouting.lookup(hopper.getEncodingManager(),
+                            request.getPoints(), weighting, hopper.getLocationIndex(),
+                            request.getSnapPreventions(), request.getPointHints());
+                    // (base) query graph used to resolve headings, curbsides etc. this is not necessarily the same thing as
+                    // the (possibly implementation specific) query graph used by PathCalculator
+                    QueryGraph queryGraph = QueryGraph.create(hopper.getGraphHopperStorage(), qResults);
+                    TraversalMode traversalMode = profile.isTurnCosts() ? TraversalMode.EDGE_BASED : TraversalMode.NODE_BASED;
+                    int maxVisitedNodesForRequest = request.getHints().getInt(Parameters.Routing.MAX_VISITED_NODES, hopper.getRouterConfig().getMaxVisitedNodes());
+                    if (maxVisitedNodesForRequest > hopper.getRouterConfig().getMaxVisitedNodes())
+                        throw new IllegalArgumentException("The max_visited_nodes parameter has to be below or equal to:" + hopper.getRouterConfig().getMaxVisitedNodes());
+                    AlgorithmOptions algoOpts = AlgorithmOptions.start().
+                            algorithm(request.getAlgorithm()).
+                            traversalMode(traversalMode).
+                            weighting(weighting).
+                            maxVisitedNodes(maxVisitedNodesForRequest).
+                            hints(request.getHints()).
+                            build();
+                    PathCalculator pathCalculator = router.createPathCalculator(queryGraph, profile, algoOpts, false, false);
+                    ViaRouting.Result result = ViaRouting.calcPaths(request.getPoints(), queryGraph, qResults, weighting.getFlagEncoder().getAccessEnc(), pathCalculator, request.getCurbsides(), false, request.getHeadings(), false);
+                    paths.addAll(result.paths);
                 }
-                MatchResult mr = mapMatching.doWork(inputGPXEntries, !fillGaps);
-                mergedPaths.add(mr.getMergedPath());
-                matchResultsList.add(mr);
+                MatchResult matchResult = mapMatching.match(inputGPXEntries, !fillGaps);
+                paths.add(matchResult.getMergedPath());
+                matchResultsList.add(matchResult);
             } while (mapMatching.hasPointsToBeMatched());
 
-            // GraphHopper thinks an empty path is an invalid path, and further that an invalid path is still a path but
-            // marked with a non-empty list of Exception objects. I disagree, so I clear it.
-            pathWrapper.getErrors().clear();
+
+            ResponsePath responsePath = pathMerger.doWork(PointList.EMPTY, paths, hopper.getEncodingManager(), tr);
+            responsePath.getErrors().clear();
             GHResponse rsp = new GHResponse();
-            pathMerger.doWork(pathWrapper, mergedPaths, hopper.getEncodingManager(), tr);
-            rsp.add(pathWrapper);
+            rsp.add(responsePath);
 
             took = sw.stop().getSeconds();
             logger.info(logStr + ", took:" + took);

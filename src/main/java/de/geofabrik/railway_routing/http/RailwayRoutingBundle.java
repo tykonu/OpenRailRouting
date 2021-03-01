@@ -34,6 +34,7 @@ import com.graphhopper.http.MultiExceptionGPXMessageBodyWriter;
 import com.graphhopper.http.MultiExceptionMapper;
 import com.graphhopper.http.TypeGPXFilter;
 import com.graphhopper.http.health.GraphHopperHealthCheck;
+import com.graphhopper.jackson.GraphHopperConfigModule;
 import com.graphhopper.jackson.Jackson;
 import com.graphhopper.resources.CustomWeightingRouteResource;
 import com.graphhopper.resources.I18NResource;
@@ -162,26 +163,10 @@ public class RailwayRoutingBundle implements ConfiguredBundle<RailwayRoutingServ
         bootstrap.getObjectMapper().registerModule(new Jdk8Module());
 
         Jackson.initObjectMapper(bootstrap.getObjectMapper());
+        bootstrap.getObjectMapper().registerModule(new GraphHopperConfigModule());
         bootstrap.getObjectMapper().setDateFormat(new StdDateFormat());
         // See https://github.com/dropwizard/dropwizard/issues/1558
         bootstrap.getObjectMapper().enable(MapperFeature.ALLOW_EXPLICIT_PROPERTY_RENAMING);
-        // Because VirtualEdgeIteratorState has getters which throw Exceptions.
-        // http://stackoverflow.com/questions/35359430/how-to-make-jackson-ignore-properties-if-the-getters-throw-exceptions
-        bootstrap.getObjectMapper().registerModule(new SimpleModule().setSerializerModifier(new BeanSerializerModifier() {
-            @Override
-            public List<BeanPropertyWriter> changeProperties(SerializationConfig config, BeanDescription beanDesc, List<BeanPropertyWriter> beanProperties) {
-                return beanProperties.stream().map(bpw -> new BeanPropertyWriter(bpw) {
-                    @Override
-                    public void serializeAsField(Object bean, JsonGenerator gen, SerializerProvider prov) throws Exception {
-                        try {
-                            super.serializeAsField(bean, gen, prov);
-                        } catch (Exception e) {
-                            // Ignoring expected exception, see above.
-                        }
-                    }
-                }).collect(Collectors.toList());
-            }
-        }));
     }
 
     @Override
