@@ -197,7 +197,7 @@ public class MatchResource {
             @QueryParam(INSTRUCTIONS) @DefaultValue("true") boolean instructions,
             @QueryParam(CALC_POINTS) @DefaultValue("true") boolean calcPoints,
             @QueryParam("points_encoded") @DefaultValue("true") boolean pointsEncoded,
-            @QueryParam("profile") @DefaultValue("car") String vehicleStr,
+            @QueryParam("profile") String profile,
             @QueryParam("locale") @DefaultValue("en") String localeStr,
             @QueryParam(Parameters.Details.PATH_DETAILS) List<String> pathDetails,
             @QueryParam("gpx.route") @DefaultValue("true") boolean withRoute,
@@ -212,13 +212,19 @@ public class MatchResource {
         String infoStr = httpReq.getRemoteAddr() + " " + httpReq.getLocale() + " " + httpReq.getHeader("User-Agent");
         String logStr = httpReq.getQueryString() + " " + infoStr;
         PMap hints = createHintsMap(uriInfo.getQueryParameters());
-        hints.putObject("vehicle", vehicleStr);
+
+        if (Helper.isEmpty(profile)) {
+            // resolve profile and remove legacy vehicle/weighting parameters
+            // we need to explicitly disable CH here because map matching does not use it
+            PMap pMap = new PMap(hints).putObject(Parameters.CH.DISABLE, true);
+            profile = profileResolver.resolveProfile(pMap).getName();
+            hints.remove("vehicle");
+            hints.remove("weighting");
+        } else if (hints.has("vehicle") || hints.has("weighting")) {
+            throw new IllegalArgumentException("Since you are using the 'profile' parameter, do not use the 'vehicle' and 'weighting' parameter.");
+        }
+        hints.putObject("profile", profile);
         hints.putObject(MAX_VISITED_NODES, maxVisitedNodes);
-        // resolve profile and remove legacy vehicle/weighting parameters
-        Profile profile = profileResolver.resolveProfile(hints);
-        hints.remove("vehicle");
-        hints.remove("weighting");
-        hints.putObject("profile", profile.getName());
         Router router = hopper.createRouter();
 
         MapMatching mapMatching = new MapMatching(hopper, hints);
@@ -241,23 +247,31 @@ public class MatchResource {
             Translation tr = trMap.getWithFallBack(Helper.getLocale(localeStr));
             List<MatchResult> matchResultsList = new ArrayList<MatchResult>(2);
             List<Path> paths = new ArrayList<Path>(3);
+            Profile routingProfile = hopper.getProfile(profile);
+            int start_point = 0;
+            List<Observation> inputPoints;
             do {
+                inputPoints = inputGPXEntries.subList(start_point, inputGPXEntries.size());
+
+                MatchResult matchResult = mapMatching.match(inputPoints, !fillGaps);
+                paths.add(matchResult.getMergedPath());
+                matchResultsList.add(matchResult);
+                start_point += Math.max(0, mapMatching.getSucessfullyMatchedPoints() - 1);
+
                 // Fill gap with normal routing if matching in the last iteration of this loop ended at a gap.
-                // mapMatching.getSucessfullyMatchedPoints() returns -1 if no point has been matched yet (e.g. gap between first and second point).
-                if (mapMatching.matchingAttempted() && mapMatching.getSucessfullyMatchedPoints() < inputGPXEntries.size() - 1) {
-                    int start_point = Math.max(0, mapMatching.getSucessfullyMatchedPoints() - 1);
+                if (start_point < inputGPXEntries.size() - 1) {
+                    inputPoints = inputGPXEntries.subList(start_point, inputGPXEntries.size());
                     List<GHPoint> points = new ArrayList<GHPoint>();
-                    points.add((GHPoint) inputGPXEntries.get(start_point).getPoint());
-                    points.add((GHPoint) inputGPXEntries.get(start_point + 1).getPoint());
+                    points.add((GHPoint) inputPoints.get(0).getPoint());
+                    points.add((GHPoint) inputPoints.get(1).getPoint());
                     GHRequest request =  new GHRequest(points);
-                    GHResponse ghRsp = new GHResponse();
                     List<Snap> qResults = ViaRouting.lookup(hopper.getEncodingManager(),
                             request.getPoints(), weighting, hopper.getLocationIndex(),
                             request.getSnapPreventions(), request.getPointHints());
                     // (base) query graph used to resolve headings, curbsides etc. this is not necessarily the same thing as
                     // the (possibly implementation specific) query graph used by PathCalculator
                     QueryGraph queryGraph = QueryGraph.create(hopper.getGraphHopperStorage(), qResults);
-                    TraversalMode traversalMode = profile.isTurnCosts() ? TraversalMode.EDGE_BASED : TraversalMode.NODE_BASED;
+                    TraversalMode traversalMode = routingProfile.isTurnCosts() ? TraversalMode.EDGE_BASED : TraversalMode.NODE_BASED;
                     int maxVisitedNodesForRequest = request.getHints().getInt(Parameters.Routing.MAX_VISITED_NODES, hopper.getRouterConfig().getMaxVisitedNodes());
                     if (maxVisitedNodesForRequest > hopper.getRouterConfig().getMaxVisitedNodes())
                         throw new IllegalArgumentException("The max_visited_nodes parameter has to be below or equal to:" + hopper.getRouterConfig().getMaxVisitedNodes());
@@ -268,15 +282,12 @@ public class MatchResource {
                             maxVisitedNodes(maxVisitedNodesForRequest).
                             hints(request.getHints()).
                             build();
-                    PathCalculator pathCalculator = router.createPathCalculator(queryGraph, profile, algoOpts, false, false);
+                    PathCalculator pathCalculator = router.createPathCalculator(queryGraph, routingProfile, algoOpts, false, false);
                     ViaRouting.Result result = ViaRouting.calcPaths(request.getPoints(), queryGraph, qResults, weighting.getFlagEncoder().getAccessEnc(), pathCalculator, request.getCurbsides(), false, request.getHeadings(), false);
                     paths.addAll(result.paths);
+                    ++start_point;
                 }
-                MatchResult matchResult = mapMatching.match(inputGPXEntries, !fillGaps);
-                paths.add(matchResult.getMergedPath());
-                matchResultsList.add(matchResult);
-            } while (mapMatching.hasPointsToBeMatched());
-
+            } while (start_point < inputGPXEntries.size() - 1);
 
             ResponsePath responsePath = pathMerger.doWork(PointList.EMPTY, paths, hopper.getEncodingManager(), tr);
             responsePath.getErrors().clear();
