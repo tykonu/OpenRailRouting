@@ -227,8 +227,6 @@ public class MatchResource {
         hints.putObject(MAX_VISITED_NODES, maxVisitedNodes);
         Router router = hopper.createRouter();
 
-        MapMatching mapMatching = new MapMatching(hopper, hints);
-        mapMatching.setMeasurementErrorSigma(gpsAccuracy);
         float took = 0;
         try {
             List<Observation> inputGPXEntries = parseInput(inputStream, httpReq.getHeader("Content-type"), csvInputSeparator, quoteChar);
@@ -252,17 +250,26 @@ public class MatchResource {
             List<Observation> inputPoints;
             do {
                 inputPoints = inputGPXEntries.subList(start_point, inputGPXEntries.size());
-
+                MapMatching mapMatching = new MapMatching(hopper, hints);
+                mapMatching.setMeasurementErrorSigma(gpsAccuracy);
                 MatchResult matchResult = mapMatching.match(inputPoints, !fillGaps);
-                paths.add(matchResult.getMergedPath());
-                matchResultsList.add(matchResult);
+                if (mapMatching.getSucessfullyMatchedPoints() > 1) {
+                    paths.add(matchResult.getMergedPath());
+                    matchResultsList.add(matchResult);
+                }
                 start_point += Math.max(0, mapMatching.getSucessfullyMatchedPoints() - 1);
 
                 // Fill gap with normal routing if matching in the last iteration of this loop ended at a gap.
                 if (start_point < inputGPXEntries.size() - 1) {
                     inputPoints = inputGPXEntries.subList(start_point, inputGPXEntries.size());
                     List<GHPoint> points = new ArrayList<GHPoint>();
-                    points.add((GHPoint) inputPoints.get(0).getPoint());
+                    if (start_point > 0) {
+                        // If we matched a part of the track, we use the last point of the match result as start.
+                        PointList pointsLast = paths.get(paths.size() - 1).calcPoints();
+                        points.add(pointsLast.get(pointsLast.size() - 1));
+                    } else {
+                        points.add((GHPoint) inputPoints.get(0).getPoint());
+                    }
                     points.add((GHPoint) inputPoints.get(1).getPoint());
                     GHRequest request =  new GHRequest(points);
                     List<Snap> qResults = ViaRouting.lookup(hopper.getEncodingManager(),
