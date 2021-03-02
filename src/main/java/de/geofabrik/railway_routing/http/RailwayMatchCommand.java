@@ -26,6 +26,7 @@ import com.graphhopper.util.Constants;
 import com.graphhopper.util.Helper;
 import com.graphhopper.util.PMap;
 import com.graphhopper.util.PathMerger;
+import com.graphhopper.util.PointList;
 import com.graphhopper.util.Translation;
 import com.graphhopper.util.TranslationMap;
 import com.graphhopper.util.gpx.GpxFromInstructions;
@@ -138,9 +139,8 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
                 String outFile = f.toString() + ".res.gpx";
                 logger.info("\texport results to:" + outFile);
 
-                ResponsePath responsePath = new ResponsePath();
-                new PathMerger(mr.getGraph(), weighting).
-                    doWork(responsePath.getPoints(), Collections.singletonList(mr.getMergedPath()), hopper.getEncodingManager(), tr);
+                ResponsePath responsePath = new PathMerger(mr.getGraph(), weighting).
+                    doWork(PointList.EMPTY, Collections.singletonList(mr.getMergedPath()), hopper.getEncodingManager(), tr);
                 if (responsePath.hasErrors()) {
                     System.err.println("Problem with file " + f + ", " + responsePath.getErrors());
                     continue;
