@@ -1,6 +1,7 @@
 package de.geofabrik.railway_routing.http;
 
-import org.hibernate.validator.constraints.NotEmpty;
+
+import javax.validation.constraints.NotEmpty;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -15,9 +16,9 @@ public class FlagEncoderConfiguration {
     private String voltages = "";
     private String frequencies = "";
     private String gauges = "";
-    private String speedFactor = "5";
-    private String maxspeed = "90";
-    private String yardSpur = "true";
+    private int speedFactor = 5;
+    private int maxspeed = 90;
+    private boolean yardSpur = true;
 
     @JsonProperty
     public String getName() {
@@ -51,17 +52,17 @@ public class FlagEncoderConfiguration {
 
     @JsonProperty
     @JsonAlias("speedFactor")
-    public String getSpeedFactor() {
+    public int getSpeedFactor() {
         return speedFactor;
     }
 
     @JsonProperty
-    public String getMaxspeed() {
+    public int getMaxspeed() {
         return maxspeed;
     }
 
     @JsonProperty
-    public String getYardSpur() {
+    public boolean getYardSpur() {
         return yardSpur;
     }
 
@@ -98,17 +99,17 @@ public class FlagEncoderConfiguration {
 
     @JsonProperty
     @JsonAlias("speedFactor")
-    public void setSpeedFactor(String value) {
+    public void setSpeedFactor(int value) {
         speedFactor = value;
     }
 
     @JsonProperty
-    public void setMaxspeed(String value) {
+    public void setMaxspeed(int value) {
         maxspeed = value;
     }
 
     @JsonProperty
-    public void setYardSpur(String value) {
+    public void setYardSpur(boolean value) {
         yardSpur = value;
     }
 }

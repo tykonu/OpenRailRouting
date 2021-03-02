@@ -183,7 +183,7 @@ public class RailFlagEncoderTest {
         e.setSpeedCorrectionFactor(0.9);
         PMap properties = new PMap();
         properties.putObject("electrifiedValues", "");
-        properties.putObject("yardSpur", "true");
+        properties.putObject("yardSpur", true);
         properties.putObject("name", "test");
         initFromProperties(e, properties);
         ReaderWay way1 = getElectrifiedWay("contact_line", "15000", "16.7");
@@ -198,7 +198,7 @@ public class RailFlagEncoderTest {
         e.setSpeedCorrectionFactor(0.9);
         PMap properties = new PMap();
         properties.putObject("electrifiedValues", "");
-        properties.putObject("yardSpur", "false");
+        properties.putObject("yardSpur", false);
         properties.putObject("name", "test");
         initFromProperties(e, properties);
         ReaderWay way1 = getElectrifiedWay("contact_line", "15000", "16.7");
