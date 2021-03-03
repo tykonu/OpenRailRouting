@@ -15,7 +15,7 @@
 
 	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	<graphhopper.version>2.3-osm-reader-callbacks</graphhopper.version>
-	<map_matching.version>2.0-fill-matching-gaps</map_matching.version>
+	<map_matching.version>2.3-fill-matching-gaps</map_matching.version>
   </properties>
 
   <dependencies>
