@@ -2,4 +2,5 @@
 
 set -euo pipefail
 
-MAVEN_OPTS=-Xss20m mvn compile assembly:single -U
+mvn compile
+mvn compile assembly:single -Dorg.slf4j.simpleLogger.defaultLogLevel=warn

@@ -11,9 +11,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import com.graphhopper.ResponsePath;
 import com.graphhopper.config.Profile;
@@ -39,7 +36,6 @@ import net.sourceforge.argparse4j.inf.Namespace;
 import net.sourceforge.argparse4j.inf.Subparser;
 
 public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerConfiguration> {
-    final Logger logger = LogManager.getLogger(RailwayMatchCommand.class);
 
     public RailwayMatchCommand() {
         super("match", "matches GPX tracks to the railway network");
@@ -91,7 +87,7 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
         hopper.setCustomEncoderConfigs(configuration.getFlagEncoderConfigurations());
         hopper.init(configuration.getGraphHopperConfiguration());
 
-        logger.info("Loading graph from cache at {}", hopper.getGraphHopperLocation());
+        System.out.println(String.format("Loading graph from cache at %s", hopper.getGraphHopperLocation()));
         hopper.load(hopper.getGraphHopperLocation());
         PMap hints = new PMap().putObject(MAX_VISITED_NODES, args.get("max_visited_nodes"));
         Profile profile = hopper.getProfile(args.get("vehicle"));
@@ -123,7 +119,7 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
 
         for (Path f : files) {
             try {
-                logger.info("Matching GPX track {} on the graph.", f.toString());
+                System.out.println(String.format("Matching GPX track %s on the graph.", f.toString()));
                 Gpx gpx = xmlMapper.readValue(f.toFile(), Gpx.class);
                 if (gpx.trk == null) {
                     throw new IllegalArgumentException("No tracks found in GPX document. Are you using waypoints or routes instead?");
@@ -133,11 +129,11 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
                 }
                 List<Observation> inputGPXEntries = gpx.trk.get(0).getEntries();
                 MatchResult mr = mapMatching.match(inputGPXEntries, false);
-                logger.debug("\tmatches: {}, GPX entries: {}", mr.getEdgeMatches().size(), inputGPXEntries.size());
-                logger.debug("\tGPX length: {} vs. {}", mr.getGpxEntriesLength(), mr.getMatchLength());
+                System.out.println(String.format("\tmatches: %d, GPX entries: %d", mr.getEdgeMatches().size(), inputGPXEntries.size()));
+                System.out.println(String.format("\tGPX length: %f vs. %f", mr.getGpxEntriesLength(), mr.getMatchLength()));
 
                 String outFile = f.toString() + ".res.gpx";
-                logger.info("\texport results to:" + outFile);
+                System.out.println("\texport results to:" + outFile);
 
                 ResponsePath responsePath = new PathMerger(mr.getGraph(), weighting).
                     doWork(PointList.EMPTY, Collections.singletonList(mr.getMergedPath()), hopper.getEncodingManager(), tr);
@@ -159,8 +155,8 @@ public class RailwayMatchCommand extends ConfiguredCommand<RailwayRoutingServerC
                             Constants.VERSION, tr));
                 }
             } catch (IOException e) {
-                logger.error("Received IOException while reading GPX file {} from input stream: {}",
-                        f.toString(), e.toString());
+                System.out.println(String.format("Received IOException while reading GPX file %s from input stream: %s",
+                        f.toString(), e.toString()));
             }
         }
         hopper.close();
