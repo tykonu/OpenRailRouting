@@ -15,6 +15,7 @@
 
 	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	<graphhopper.version>2.3-osm-reader-callbacks</graphhopper.version>
+	<map_matching.version>2.0-fill-matching-gaps</map_matching.version>
   </properties>
 
   <dependencies>
@@ -57,7 +58,7 @@
         <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-map-matching-core</artifactId>
-            <version>2.0-fill-matching-gaps</version>
+	    <version>${map_matching.version}</version>
             <exclusions>
               <exclusion>
                 <!-- exclude graphhopper-core because it is already included directly but the map matching module brings in an older version -->
@@ -73,7 +74,7 @@
         <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-map-matching-web</artifactId>
-            <version>1.0-fill-matching-gaps</version>
+            <version>${map_matching.version}</version>
             <exclusions>
               <exclusion>
                 <!-- exclude graphhopper-core because it is already included directly but the map matching module brings in an older version -->
