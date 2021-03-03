@@ -13,30 +13,25 @@
 	          <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
 
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	<graphhopper.version>2.3-osm-reader-callbacks</graphhopper.version>
   </properties>
 
   <dependencies>
     <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-core</artifactId>
-            <version>2.3-osm-reader-callbacks</version>
-            <!--<scope>system</scope>
-            <systemPath>${basedir}/graphhopper/core/target/graphhopper-core-0.13-SNAPSHOT.jar</systemPath>-->
+	    <version>${graphhopper.version}</version>
           </dependency>
           <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-reader-osm</artifactId>
-            <version>2.3-osm-reader-callbacks</version>
-            <!--<scope>system</scope>
-            <systemPath>${basedir}/graphhopper/reader-osm/target/graphhopper-reader-osm-0.13-SNAPSHOT.jar</systemPath>-->
+            <version>${graphhopper.version}</version>
           </dependency>
           <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-web</artifactId>
-            <version>2.3-osm-reader-callbacks</version>
-            <!--<scope>system</scope>
-            <systemPath>${basedir}/graphhopper/web/target/graphhopper-web-0.13-SNAPSHOT.jar</systemPath>-->
+            <version>${graphhopper.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -52,12 +47,12 @@
           <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-api</artifactId>
-            <version>2.3-osm-reader-callbacks</version>
+            <version>${graphhopper.version}</version>
           </dependency>
           <dependency>
             <groupId>com.graphhopper</groupId>
             <artifactId>graphhopper-web-api</artifactId>
-            <version>2.3-osm-reader-callbacks</version>
+            <version>${graphhopper.version}</version>
           </dependency>
         <dependency>
             <groupId>com.graphhopper</groupId>
