@@ -234,7 +234,7 @@ public class MatchResource {
                 throw new IllegalArgumentException("input contains less than two points");
             }
             GraphHopperStorage storage = hopper.getGraphHopperStorage();
-            Weighting weighting = hopper.createWeighting(hopper.getProfiles().get(0), hints);
+            Weighting weighting = hopper.createWeighting(hopper.getProfile(profile), hints);
                 DouglasPeucker peucker = new DouglasPeucker().setMaxDistance(minPathPrecision);
             PathMerger pathMerger = new PathMerger(storage, weighting).
                 setEnableInstructions(instructions).
