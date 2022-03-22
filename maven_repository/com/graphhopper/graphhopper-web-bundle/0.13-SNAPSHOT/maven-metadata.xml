@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata modelVersion="1.1.0">
+  <groupId>com.graphhopper</groupId>
+  <artifactId>graphhopper-web-bundle</artifactId>
+  <versioning>
+    <lastUpdated>20220321103712</lastUpdated>
+    <snapshot>
+      <timestamp>20220321.103712</timestamp>
+      <buildNumber>1</buildNumber>
+    </snapshot>
+    <snapshotVersions>
+      <snapshotVersion>
+        <extension>jar</extension>
+        <value>0.13-20220321.103712-1</value>
+        <updated>20220321103712</updated>
+      </snapshotVersion>
+      <snapshotVersion>
+        <extension>pom</extension>
+        <value>0.13-20220321.103712-1</value>
+        <updated>20220321103712</updated>
+      </snapshotVersion>
+    </snapshotVersions>
+  </versioning>
+  <version>0.13-SNAPSHOT</version>
+</metadata>

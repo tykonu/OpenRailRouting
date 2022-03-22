@@ -20,6 +20,10 @@ flagEncoderProperties:
     maxspeed: 140
     speedFactor: 5
     electrified: contact_line,yes
+  - name: freight_routing
+    railway: rail
+    maxspeed: 319
+    speedFactor: 11
 
 graphhopper:
   # OpenStreetMap input file
@@ -33,7 +37,16 @@ graphhopper:
   # This property must not be set for railway routing. Use graphhopper.profiles instead
   # graph.flag_encoders: car
 
-  profiles: alltracks,allelectric
+  #profiles: tgv_all,non_tgv
+  #profiles: allthefuckinglines
+  #profiles: tgv_all,non_tgv,alltracks,allelectric,freight_routing
+  profiles: freight_routing
+  #profiles: freight_electric_15kvac_25kvac,freight_diesel
+
+  index.high_resolution: 1000
+  index.max_region_search: 13
+  #profiles: freight_electric_15kvac_25kvac,freight_diesel,tgv_15kvac25kvac1.5kvdc,tgv_25kvac1.5kvdc3kvdc
+  #index.index.max_region_search: 8
 
   # Enable turn restrictions for car or motorcycle.
   # graph.flag_encoders: car|turn_costs=true
@@ -84,7 +97,7 @@ graphhopper:
 
 
   # avoid being stuck in a (oneway) subnetwork, see https://discuss.graphhopper.com/t/93
-  #prepare.min_network_size: 200
+  prepare.min_network_size: 0
   #prepare.min_one_way_network_size: 200
 
 
@@ -112,7 +125,7 @@ graphhopper:
 
   # You can limit the max distance between two consecutive waypoints of flexible routing requests to be less or equal
   # the given distance in meter. Default is set to 1000km.
-  routing.non_ch.max_waypoint_distance: 1000000
+  routing.non_ch.max_waypoint_distance: 10000000
 
 
 
