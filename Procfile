@@ -1,0 +1,1 @@
+web: java -Xmx2500m -Xms50m -Dgraphhopper.prepare.ch.weightings=no -Dgraphhopper.datareader.file=planet-rail.osm.pbf -jar target/railway_routing-0.0.1-SNAPSHOT-jar-with-dependencies.jar serve config.yml
