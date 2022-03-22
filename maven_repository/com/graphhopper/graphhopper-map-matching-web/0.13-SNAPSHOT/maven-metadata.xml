@@ -3,21 +3,21 @@
   <groupId>com.graphhopper</groupId>
   <artifactId>graphhopper-map-matching-web</artifactId>
   <versioning>
-    <lastUpdated>20220321103749</lastUpdated>
+    <lastUpdated>20220322140916</lastUpdated>
     <snapshot>
-      <timestamp>20220321.103749</timestamp>
+      <timestamp>20220322.140916</timestamp>
       <buildNumber>1</buildNumber>
     </snapshot>
     <snapshotVersions>
       <snapshotVersion>
         <extension>jar</extension>
-        <value>0.13-20220321.103749-1</value>
-        <updated>20220321103749</updated>
+        <value>0.13-20220322.140916-1</value>
+        <updated>20220322140916</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>pom</extension>
-        <value>0.13-20220321.103749-1</value>
-        <updated>20220321103749</updated>
+        <value>0.13-20220322.140916-1</value>
+        <updated>20220322140916</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
