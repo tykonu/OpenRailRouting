@@ -3,21 +3,21 @@
   <groupId>com.graphhopper</groupId>
   <artifactId>graphhopper-reader-osm</artifactId>
   <versioning>
-    <lastUpdated>20220322140851</lastUpdated>
+    <lastUpdated>20220323095608</lastUpdated>
     <snapshot>
-      <timestamp>20220322.140851</timestamp>
+      <timestamp>20220323.095608</timestamp>
       <buildNumber>1</buildNumber>
     </snapshot>
     <snapshotVersions>
       <snapshotVersion>
         <extension>jar</extension>
-        <value>0.13-20220322.140851-1</value>
-        <updated>20220322140851</updated>
+        <value>0.13-20220323.095608-1</value>
+        <updated>20220323095608</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>pom</extension>
-        <value>0.13-20220322.140851-1</value>
-        <updated>20220322140851</updated>
+        <value>0.13-20220323.095608-1</value>
+        <updated>20220323095608</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>

@@ -3,21 +3,21 @@
   <groupId>com.graphhopper</groupId>
   <artifactId>graphhopper-web-api</artifactId>
   <versioning>
-    <lastUpdated>20220322140846</lastUpdated>
+    <lastUpdated>20220323095603</lastUpdated>
     <snapshot>
-      <timestamp>20220322.140846</timestamp>
+      <timestamp>20220323.095603</timestamp>
       <buildNumber>1</buildNumber>
     </snapshot>
     <snapshotVersions>
       <snapshotVersion>
         <extension>jar</extension>
-        <value>0.13-20220322.140846-1</value>
-        <updated>20220322140846</updated>
+        <value>0.13-20220323.095603-1</value>
+        <updated>20220323095603</updated>
       </snapshotVersion>
       <snapshotVersion>
         <extension>pom</extension>
-        <value>0.13-20220322.140846-1</value>
-        <updated>20220322140846</updated>
+        <value>0.13-20220323.095603-1</value>
+        <updated>20220323095603</updated>
       </snapshotVersion>
     </snapshotVersions>
   </versioning>
